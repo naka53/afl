@@ -4,7 +4,7 @@
 #
 # Written and maintained by Michal Zalewski <lcamtuf@google.com>
 # 
-# Copyright 2013, 2014, 2015, 2016, 2017 Google Inc. All rights reserved.
+# Copyright 2013, 2014, 2015, 2016, 2017 Google LLC All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ COMM_HDR    = alloc-inl.h config.h debug.h types.h
 
 all: test_x86 $(PROGS) afl-as test_build all_done
 
-ifndef AFL_NO_X86
+ifdef AFL_X86
 
 test_x86:
 	@echo "[*] Checking for the ability to compile x86 code..."
@@ -57,7 +57,7 @@ test_x86:
 else
 
 test_x86:
-	@echo "[!] Note: skipping x86 compilation checks (AFL_NO_X86 set)."
+	@echo "[!] Note: skipping x86 compilation checks (AFL_RISCV or AFL_ARM set)."
 
 endif
 
@@ -65,11 +65,19 @@ afl-gcc: afl-gcc.c $(COMM_HDR) | test_x86
 	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
 	set -e; for i in afl-g++ afl-clang afl-clang++; do ln -sf afl-gcc $$i; done
 
-ifdef AFL_NO_X86
-afl-as: afl-as.c afl-as-ppc.h $(COMM_HDR)
-	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS) -DTARGET_PPC
+ifdef AFL_RISCV
+afl-as: afl-as.c afl-as-arm.h $(COMM_HDR)
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS) -DTARGET_RISCV
 	ln -sf afl-as as
-else
+endif
+
+ifdef AFL_ARM
+afl-as: afl-as.c afl-as-arm.h $(COMM_HDR)
+	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS) -DTARGET_ARM
+	ln -sf afl-as as
+endif
+
+ifdef AFL_X86
 afl-as: afl-as.c afl-as-x86.h $(COMM_HDR) | test_x86
 	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS) -DTARGET_X86
 	ln -sf afl-as as
@@ -90,12 +98,12 @@ afl-analyze: afl-analyze.c $(COMM_HDR) | test_x86
 afl-gotcpu: afl-gotcpu.c $(COMM_HDR) | test_x86
 	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
 
-ifndef AFL_NO_X86
+ifdef AFL_X86
 
 test_build: afl-gcc afl-as afl-showmap
 	@echo "[*] Testing the CC wrapper and instrumentation output..."
 	unset AFL_USE_ASAN AFL_USE_MSAN; AFL_QUIET=1 AFL_INST_RATIO=100 AFL_PATH=. ./$(TEST_CC) $(CFLAGS) test-instr.c -o test-instr $(LDFLAGS)
-	echo 0 | ./afl-showmap -m none -q -o .test-instr0 ./test-instr
+	./afl-showmap -m none -q -o .test-instr0 ./test-instr < /dev/null
 	echo 1 | ./afl-showmap -m none -q -o .test-instr1 ./test-instr
 	@rm -f test-instr
 	@cmp -s .test-instr0 .test-instr1; DR="$$?"; rm -f .test-instr0 .test-instr1; if [ "$$DR" = "0" ]; then echo; echo "Oops, the instrumentation does not seem to be behaving correctly!"; echo; echo "Please ping <lcamtuf@google.com> to troubleshoot the issue."; echo; exit 1; fi
@@ -139,12 +147,12 @@ endif
 	set -e; for i in afl-g++ afl-clang afl-clang++; do ln -sf afl-gcc $${DESTDIR}$(BIN_PATH)/$$i; done
 	install -m 755 afl-as $${DESTDIR}$(HELPER_PATH)
 	ln -sf afl-as $${DESTDIR}$(HELPER_PATH)/as
-	install -m 644 docs/README docs/ChangeLog docs/*.txt $${DESTDIR}$(DOC_PATH)
+	install -m 644 README.md docs/ChangeLog docs/*.txt $${DESTDIR}$(DOC_PATH)
 	cp -r testcases/ $${DESTDIR}$(MISC_PATH)
 	cp -r dictionaries/ $${DESTDIR}$(MISC_PATH)
 
 publish: clean
-	test "`basename $$PWD`" = "afl" || exit 1
+	test "`basename $$PWD`" = "AFL" || exit 1
 	test -f ~/www/afl/releases/$(PROGNAME)-$(VERSION).tgz; if [ "$$?" = "0" ]; then echo; echo "Change program version in config.h, mmkay?"; echo; exit 1; fi
 	cd ..; rm -rf $(PROGNAME)-$(VERSION); cp -pr $(PROGNAME) $(PROGNAME)-$(VERSION); \
 	  tar -cvz -f ~/www/afl/releases/$(PROGNAME)-$(VERSION).tgz $(PROGNAME)-$(VERSION)

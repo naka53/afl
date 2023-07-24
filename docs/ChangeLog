@@ -17,6 +17,49 @@ is 2.41b. If you're stuck on an earlier release, it's strongly advisable
 to get on with the times.
 
 ---------------------------
+Version 2.57b (2020-06-30):
+---------------------------
+
+  - llvm_mode and alf-clang-fast related fixes.
+
+  - Android support.
+
+  - Fixed bugs with stability calculate and testcase calibration.
+
+---------------------------
+Version 2.56b (2019-09-26):
+---------------------------
+
+  - Fixed the mismatch between the released version and the version in the code.
+
+---------------------------
+Version 2.55b (2019-09-19):
+---------------------------
+
+  - Exporting more metrics (peak_rss_mb, slowest_exec_ms).
+
+  - Improved tests.
+
+  - Fixes for bugs and changes in upstream llvm/clang.
+
+---------------------------
+Version 2.54b (2019-08-27):
+---------------------------
+
+  - Fixed compilation errors for QEMU mode for recent glibc.
+
+  - Made it possible to compile AFL with `-std=c11` and `-D_GNU_SOURCE`.
+
+  - Minor documentation improvements.
+
+---------------------------
+Version 2.53b (2019-07-25):
+---------------------------
+
+  - No functional changes. Updated some comments and license headers to comply
+    with the open sourcing guidelines and publish the source code on GitHub.
+
+---------------------------
 Version 2.52b (2017-11-04):
 ---------------------------
 
@@ -883,10 +926,10 @@ Version 1.74b:
 Version 1.73b:
 --------------
 
-  - Fixed a pretty stupid bug in effector maps that could sometimes cause
-    AFL to fuzz slightly more than necessary; and in very rare circumstances,
-    could lead to SEGV if eff_map is aligned with page boundary and followed
-    by an unmapped page. Spotted by Jonathan Gray.
+  - Fixed a bug in effector maps that could sometimes cause AFL to fuzz slightly
+    more than necessary; and in very rare circumstances, could lead to SEGV if
+    eff_map is aligned with page boundary and followed by an unmapped page.
+    Spotted by Jonathan Gray.
 
 --------------
 Version 1.72b:
