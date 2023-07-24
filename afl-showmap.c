@@ -22,6 +22,7 @@
  */
 
 #define AFL_MAIN
+#include "android-ashmem.h"
 
 #include "config.h"
 #include "types.h"
@@ -155,7 +156,7 @@ static void setup_shm(void) {
 
   trace_bits = shmat(shm_id, NULL, 0);
   
-  if (!trace_bits) PFATAL("shmat() failed");
+  if (trace_bits == (void *)-1) PFATAL("shmat() failed");
 
 }
 
@@ -487,7 +488,8 @@ static void usage(u8* argv0) {
 
        "  -q            - sink program's output and don't show messages\n"
        "  -e            - show edge coverage only, ignore hit counts\n"
-       "  -c            - allow core dumps\n\n"
+       "  -c            - allow core dumps\n"
+       "  -V            - show version number and exit\n\n"
 
        "This tool displays raw tuple data captured by AFL instrumentation.\n"
        "For additional help, consult %s/README.\n\n" cRST,
@@ -626,7 +628,7 @@ int main(int argc, char** argv) {
 
   doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
 
-  while ((opt = getopt(argc,argv,"+o:m:t:A:eqZQbc")) > 0)
+  while ((opt = getopt(argc,argv,"+o:m:t:A:eqZQbcV")) > 0)
 
     switch (opt) {
 
@@ -736,6 +738,11 @@ int main(int argc, char** argv) {
         if (keep_cores) FATAL("Multiple -c options not supported");
         keep_cores = 1;
         break;
+
+      case 'V':
+
+        show_banner();
+        exit(0);
 
       default:
 

@@ -21,7 +21,7 @@
 
 /* Version string: */
 
-#define VERSION             "2.52b"
+#define VERSION             "2.57b"
 
 /******************************************************
  *                                                    *
@@ -41,19 +41,24 @@
 /* Default timeout for fuzzed code (milliseconds). This is the upper bound,
    also used for detecting hangs; the actual value is auto-scaled: */
 
-#define EXEC_TIMEOUT        3000
+#define EXEC_TIMEOUT        1000
 
 /* Timeout rounding factor when auto-scaling (milliseconds): */
 
 #define EXEC_TM_ROUND       20
 
+/* 64bit arch MACRO */
+#if (defined (__x86_64__) || defined (__arm64__) || defined (__aarch64__))
+#define WORD_SIZE_64 1
+#endif
+
 /* Default memory limit for child process (MB): */
 
-#ifndef __x86_64__ 
-#  define MEM_LIMIT         1025
+#ifndef WORD_SIZE_64
+#  define MEM_LIMIT         25
 #else
-#  define MEM_LIMIT         1050
-#endif /* ^!__x86_64__ */
+#  define MEM_LIMIT         50
+#endif /* ^!WORD_SIZE_64 */
 
 /* Default memory limit when running in QEMU mode (MB): */
 
@@ -313,7 +318,7 @@
    problems with complex programs). You need to recompile the target binary
    after changing this - otherwise, SEGVs may ensue. */
 
-#define MAP_SIZE_POW2       16
+#define MAP_SIZE_POW2       22
 #define MAP_SIZE            (1 << MAP_SIZE_POW2)
 
 /* Maximum allocator request size (keep well under INT_MAX): */

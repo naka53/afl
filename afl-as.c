@@ -42,19 +42,37 @@ static inline int conditional_branch(u8 *line)
    return (line[1] == 'j' && line[2] != 'm');
 }
 
-#elif defined(TARGET_PPC)
-#include "afl-as-ppc.h"
+#elif defined(TARGET_ARM)
+#include "afl-as-arm.h"
 
 static inline int unconditional_branch(u8 *op)
 {
-   /* "b", "ba", "bl", "bla", "blr", "bctr", "blrl", "bctrl" */
    return (
       *op == ' '              ||
-      !strncmp(op, "a ",  2)  ||
-      !strncmp(op, "l ",  2)  ||
-      !strncmp(op, "lr",  2)  ||
-      !strncmp(op, "la",  2)  ||
-      !strncmp(op, "ctr", 3)
+      !strncmp(op, "eq ",  3)   ||
+      !strncmp(op, "ne ",  3)   ||
+      !strncmp(op, "ge ",  3)   ||
+      !strncmp(op, "lt ",  3)   ||
+      !strncmp(op, "gt ",  3)   ||
+      !strncmp(op, "le ",  3)   ||
+      !strncmp(op, "xeq ",  4)   ||
+      !strncmp(op, "xne ",  4)   ||
+      !strncmp(op, "xge ",  4)   ||
+      !strncmp(op, "xlt ",  4)   ||
+      !strncmp(op, "xgt ",  4)   ||
+      !strncmp(op, "xle ",  4)   ||
+      !strncmp(op, "leq ",  4)   ||
+      !strncmp(op, "lne ",  4)   ||
+      !strncmp(op, "lge ",  4)   ||
+      !strncmp(op, "llt ",  4)   ||
+      !strncmp(op, "lgt ",  4)   ||
+      !strncmp(op, "lle ",  4)   ||
+      !strncmp(op, "lxeq ",  5)   ||
+      !strncmp(op, "lxne ",  5)   ||
+      !strncmp(op, "lxge ",  5)   ||
+      !strncmp(op, "lxlt ",  5)   ||
+      !strncmp(op, "lxgt ",  5)   ||
+      !strncmp(op, "lxle ",  5) 
       );
 }
 
@@ -63,6 +81,26 @@ static inline int conditional_branch(char *line)
    return (line[1] == 'b' && !unconditional_branch(line+2));
 }
 
+#elif defined(TARGET_RISCV)
+#include "afl-as-riscv.h"
+
+static inline int unconditional_branch(u8 *op)
+{
+   return (
+      *op == ' '     ||         
+      !strncmp(op, "eq ",  3)   ||
+      !strncmp(op, "ne ",  3)   ||
+      !strncmp(op, "ge ",  3)   ||
+      !strncmp(op, "lt ",  3)   ||
+      !strncmp(op, "ltu ",  4)   ||
+      !strncmp(op, "geu ",  4)
+   );
+}
+
+static inline int conditional_branch(char *line)
+{
+   return (line[1] == 'b' && !unconditional_branch(line+2));
+}
 #endif
 
 #include <stdio.h>
@@ -94,10 +132,12 @@ static u32  inst_ratio = 100,   /* Instrumentation probability (%)      */
    instrumentation for whichever mode we were compiled with. This is not
    perfect, but should do the trick for almost all use cases. */
 
-#ifdef TARGET_PPC
+#ifdef TARGET_ARM
 static u8 use_64bit = 0;
+#elif TARGET_RISCV
+static u8 use_64bit = 1;
 #else
-#ifdef __x86_64__
+#ifdef WORD_SIZE_64
 
 static u8   use_64bit = 1;
 
@@ -109,8 +149,9 @@ static u8   use_64bit = 0;
 #  error "Sorry, 32-bit Apple platforms are not supported."
 #endif /* __APPLE__ */
 
-#endif /* ^__x86_64__ */
+#endif /* ^WORD_SIZE_64 */
 #endif
+
 
 /* Examine and modify parameters to pass to 'as'. Note that the file name
    is always the last parameter passed by GCC, so we exploit this property
@@ -278,7 +319,7 @@ static void add_instrumentation(void) {
 
   outf = fdopen(outfd, "w");
 
-  if (!outf) PFATAL("fdopen() failed");
+  if (!outf) PFATAL("fdopen() failed");  
 
   while (fgets(line, MAX_LINE, inf)) {
 
@@ -286,18 +327,17 @@ static void add_instrumentation(void) {
        until after all the labels, macros, comments, etc. If we're in this
        mode, and if the line starts with a tab followed by a character, dump
        the trampoline now. */
-
+    
     if (!pass_thru && !skip_intel && !skip_app && !skip_csect && instr_ok &&
         instrument_next && line[0] == '\t' && isalpha(line[1])) {
 
-      fprintf(outf, use_64bit ? trampoline_fmt_64 : trampoline_fmt_32,
-              R(MAP_SIZE));
+      fprintf(outf, use_64bit ? trampoline_fmt_64 : trampoline_fmt_32, R(MAP_SIZE));
 
       instrument_next = 0;
       ins_lines++;
 
     }
-
+    
     /* Output the actual line, call it a day in pass-thru mode. */
 
     fputs(line, outf);
@@ -323,7 +363,7 @@ static void add_instrumentation(void) {
           !strncmp(line + 2, "section\t__TEXT,__text", 21) ||
           !strncmp(line + 2, "section __TEXT,__text", 21)) {
         instr_ok = 1;
-        continue;
+        continue; 
       }
 
       if (!strncmp(line + 2, "section\t", 8) ||
@@ -394,9 +434,9 @@ static void add_instrumentation(void) {
        branch destination label (handled later on). */
 
     if (line[0] == '\t') {
+
       if (conditional_branch(line) && R(100) < inst_ratio) {
-        fprintf(outf, use_64bit ? trampoline_fmt_64 : trampoline_fmt_32,
-                R(MAP_SIZE));
+        fprintf(outf, use_64bit ? trampoline_fmt_64 : trampoline_fmt_32, R(MAP_SIZE));
 
         ins_lines++;
 
@@ -511,7 +551,7 @@ int main(int argc, char** argv) {
   if (isatty(2) && !getenv("AFL_QUIET")) {
 
     SAYF(cCYA "afl-as " cBRI VERSION cRST " by <lcamtuf@google.com>\n");
-
+ 
   } else be_quiet = 1;
 
   if (argc < 2) {
